@@ -89,3 +89,15 @@ model Task {
   contactId String?
   contact   Contact? @relation(fields: [contactId], references: [id])
 }
+
+model JobCategory {
+  id            String   @id @default(cuid())
+  code          String   @unique // The code from "Excelsior"
+  name          String
+  keywords      String   // Comma separated keywords for matching
+
+  demandScore   Int      @default(50)
+  scarcityScore Int      @default(50)
+
+  lastUpdated   DateTime @updatedAt
+}

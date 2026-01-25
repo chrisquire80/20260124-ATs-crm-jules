@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Phone, Mail, MessageSquare, Plus, Calendar } from "lucide-react"
+import { Phone, Mail, MessageSquare, Plus, Calendar, TrendingUp } from "lucide-react"
 import { EnrichmentButton } from "@/components/contacts/EnrichmentButton"
 import { format } from "date-fns"
+import { getContactMarketData } from "@/actions/intelligence"
 
 export default async function ContactPage({ params }: { params: { id: string } }) {
   const { id } = await params
@@ -22,6 +23,8 @@ export default async function ContactPage({ params }: { params: { id: string } }
   })
 
   if (!contact) notFound()
+
+  const marketData = await getContactMarketData(contact.id)
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
@@ -59,6 +62,38 @@ export default async function ContactPage({ params }: { params: { id: string } }
                         />
                      </div>
                 </div>
+
+                {marketData && marketData.categoryName && (
+                  <div className="mt-6 w-full p-4 bg-muted/50 rounded-lg">
+                     <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-3 flex items-center">
+                        <TrendingUp className="h-3 w-3 mr-1" /> Market Intelligence
+                     </h4>
+                     <div className="space-y-3">
+                        <div className="flex justify-between items-center text-sm">
+                            <span>Category</span>
+                            <span className="font-medium">{marketData.categoryName}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                            <span>Demand</span>
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold">{marketData.demand}</span>
+                                <div className="h-1.5 w-16 bg-secondary rounded-full overflow-hidden">
+                                    <div className="h-full bg-blue-500" style={{ width: `${marketData.demand}%` }} />
+                                </div>
+                            </div>
+                        </div>
+                         <div className="flex justify-between items-center text-sm">
+                            <span>Scarcity</span>
+                            <div className="flex items-center gap-2">
+                                <span className="font-bold">{marketData.scarcity}</span>
+                                <div className="h-1.5 w-16 bg-secondary rounded-full overflow-hidden">
+                                    <div className="h-full bg-orange-500" style={{ width: `${marketData.scarcity}%` }} />
+                                </div>
+                            </div>
+                        </div>
+                     </div>
+                  </div>
+                )}
 
                 <div className="mt-6 w-full">
                     <EnrichmentButton contactId={contact.id} />
