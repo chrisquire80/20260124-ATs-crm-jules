@@ -1,49 +1,63 @@
 import { NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
+import { z } from "zod"
+
+const marketDataSchema = z.array(
+  z.object({
+    code: z.string().min(1),
+    name: z.string().min(1),
+    keywords: z.string().optional(),
+    demandScore: z.number().min(0).max(100).optional(),
+    scarcityScore: z.number().min(0).max(100).optional(),
+  })
+)
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
+    const json = await request.json()
+    const parseResult = marketDataSchema.safeParse(json)
 
-    // Validation: Ensure body is an array
-    if (!Array.isArray(body)) {
+    if (!parseResult.success) {
       return NextResponse.json(
-        { error: "Invalid format. Expected an array of market data objects." },
+        { error: "Invalid data format", details: parseResult.error.format() },
         { status: 400 }
       )
     }
 
-    const operations = body
-      .filter((row: { code: string; name: string }) => row.code && row.name)
-      .map((row: {
-        code: string
-        name: string
-        keywords?: string
-        demandScore?: number
-        scarcityScore?: number
-      }) =>
+    const body = parseResult.data
+
+    // Chunk operations to avoid transaction limits
+    const CHUNK_SIZE = 50
+    let count = 0
+
+    for (let i = 0; i < body.length; i += CHUNK_SIZE) {
+      const chunk = body.slice(i, i + CHUNK_SIZE)
+      const operations = chunk.map((row) =>
         prisma.jobCategory.upsert({
           where: { code: row.code },
           update: {
-            demandScore: row.demandScore || 50,
-            scarcityScore: row.scarcityScore || 50,
-            lastUpdated: new Date()
+            demandScore: row.demandScore ?? 50,
+            scarcityScore: row.scarcityScore ?? 50,
+            lastUpdated: new Date(),
           },
           create: {
             code: row.code,
             name: row.name,
-            keywords: row.keywords || row.name, // Fallback
-            demandScore: row.demandScore || 50,
-            scarcityScore: row.scarcityScore || 50
+            keywords: row.keywords || row.name,
+            demandScore: row.demandScore ?? 50,
+            scarcityScore: row.scarcityScore ?? 50,
           },
         })
       )
+      await prisma.$transaction(operations)
+      count += operations.length
+    }
 
-    await prisma.$transaction(operations)
-
-    const count = operations.length
-
-    return NextResponse.json({ success: true, count, message: "Market data updated successfully" })
+    return NextResponse.json({
+      success: true,
+      count,
+      message: "Market data updated successfully",
+    })
   } catch (error) {
     console.error("API Import failed:", error)
     return NextResponse.json(
