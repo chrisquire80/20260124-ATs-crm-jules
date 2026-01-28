@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  firstName String
+  lastName  String
+  email     String   @unique
+  phone     String?
+  jobTitle  String?
+
+  // Predictive Intelligence
+  score           Int     @default(0) // 0-100
+  sentiment       String? // "POSITIVE", "NEUTRAL", "NEGATIVE"
+  lastContactedAt DateTime?
+
+  // Relations
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  deals     Deal[]
+  activities Activity[]
+  tasks     Task[]
+}
+
+model Company {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name      String   @unique
+  domain    String?
+  logoUrl   String?
+  industry  String?
+  address   String?
+
+  contacts  Contact[]
+  deals     Deal[]
+}
+
+model Deal {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  title     String
+  value     Float
+  stage     String   @default("LEAD") // LEAD, CONTACTED, MEETING, PROPOSAL, CLOSED, LOST
+
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id])
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  type      String   // EMAIL, CALL, NOTE, MEETING
+  title     String?
+  content   String?
+
+  // Intelligence
+  sentiment String? // POSITIVE, NEUTRAL, NEGATIVE
+
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id])
+}
+
+model Task {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  title     String
+  dueDate   DateTime?
+  completed Boolean @default(false)
+
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id])
+}
+
+model JobCategory {
+  id            String   @id @default(cuid())
+  code          String   @unique // The code from "Excelsior"
+  name          String
+  keywords      String   // Comma separated keywords for matching
+
+  demandScore   Int      @default(50)
+  scarcityScore Int      @default(50)
+
+  lastUpdated   DateTime @updatedAt
+}
