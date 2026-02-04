@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Phone, Mail, MessageSquare, Plus, Calendar, TrendingUp } from "lucide-react"
 import { EnrichmentButton } from "@/components/contacts/EnrichmentButton"
 import { format } from "date-fns"
-import { getContactMarketData } from "@/actions/intelligence"
+import { getMarketIntelligence } from "@/actions/intelligence"
 
 export default async function ContactPage({ params }: { params: { id: string } }) {
   const { id } = await params
@@ -24,7 +24,7 @@ export default async function ContactPage({ params }: { params: { id: string } }
 
   if (!contact) notFound()
 
-  const marketData = await getContactMarketData(contact.id)
+  const marketData = await getMarketIntelligence(contact.jobTitle)
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">

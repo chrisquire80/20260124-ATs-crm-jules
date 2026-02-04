@@ -11,7 +11,7 @@ const getJobCategories = unstable_cache(
 )
 
 // Basic keyword matching logic
-async function getMarketScore(jobTitle: string) {
+export async function getMarketIntelligence(jobTitle: string | null | undefined) {
   if (!jobTitle) return { demand: 50, scarcity: 50, categoryName: null }
 
   const categories = await getJobCategories()
@@ -55,7 +55,7 @@ export async function calculateLeadScore(contactId: string): Promise<number> {
 
   // 2. Market Intelligence Score (Demand + Scarcity)
   if (contact.jobTitle) {
-    const { demand, scarcity } = await getMarketScore(contact.jobTitle)
+    const { demand, scarcity } = await getMarketIntelligence(contact.jobTitle)
 
     // Algorithm: High demand + High scarcity = Higher score
     // Normalized contribution: up to 60 points
@@ -122,5 +122,5 @@ export async function getContactMarketData(contactId: string) {
 
     if (!contact?.jobTitle) return null
 
-    return await getMarketScore(contact.jobTitle)
+    return await getMarketIntelligence(contact.jobTitle)
 }
