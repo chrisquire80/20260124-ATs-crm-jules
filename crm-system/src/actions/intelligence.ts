@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma"
 import { enrichContactData } from "@/lib/intelligence" // Reuse existing enrichment
 import { revalidatePath, unstable_cache } from "next/cache"
+import { Contact, Activity } from "@prisma/client"
 
 const getJobCategories = unstable_cache(
   async () => prisma.jobCategory.findMany(),
@@ -39,14 +40,7 @@ async function getMarketScore(jobTitle: string) {
   return { demand: 50, scarcity: 50, categoryName: null }
 }
 
-export async function calculateLeadScore(contactId: string): Promise<number> {
-  const contact = await prisma.contact.findUnique({
-    where: { id: contactId },
-    include: { activities: true }
-  })
-
-  if (!contact) return 0
-
+async function calculateScoreInternal(contact: Contact & { activities: Activity[] }): Promise<number> {
   let score = 0
 
   // 1. Engagement Score (Activities)
@@ -71,9 +65,21 @@ export async function calculateLeadScore(contactId: string): Promise<number> {
   return Math.min(Math.round(score), 100)
 }
 
+export async function calculateLeadScore(contactId: string): Promise<number> {
+  const contact = await prisma.contact.findUnique({
+    where: { id: contactId },
+    include: { activities: true }
+  })
+
+  if (!contact) return 0
+
+  return calculateScoreInternal(contact)
+}
+
 export async function enrichAndScoreContact(contactId: string) {
     const contact = await prisma.contact.findUnique({
-        where: { id: contactId }
+        where: { id: contactId },
+        include: { activities: true }
     })
 
     if (!contact) throw new Error("Contact not found")
@@ -101,7 +107,8 @@ export async function enrichAndScoreContact(contactId: string) {
     }
 
     // 2. Score (now includes Market Logic)
-    const newScore = await calculateLeadScore(contactId)
+    // Optimization: Reuse the fetched contact with activities
+    const newScore = await calculateScoreInternal(contact)
 
     await prisma.contact.update({
         where: { id: contactId },
