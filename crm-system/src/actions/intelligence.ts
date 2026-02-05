@@ -39,14 +39,12 @@ async function getMarketScore(jobTitle: string) {
   return { demand: 50, scarcity: 50, categoryName: null }
 }
 
-export async function calculateLeadScore(contactId: string): Promise<number> {
-  const contact = await prisma.contact.findUnique({
-    where: { id: contactId },
-    include: { activities: true }
-  })
-
-  if (!contact) return 0
-
+// Internal helper to calculate score from data
+// Accepts a partial contact object with activities
+async function calculateScoreInternal(contact: {
+  jobTitle: string | null;
+  activities: { id: string }[]
+}) {
   let score = 0
 
   // 1. Engagement Score (Activities)
@@ -71,9 +69,22 @@ export async function calculateLeadScore(contactId: string): Promise<number> {
   return Math.min(Math.round(score), 100)
 }
 
+export async function calculateLeadScore(contactId: string): Promise<number> {
+  const contact = await prisma.contact.findUnique({
+    where: { id: contactId },
+    include: { activities: true }
+  })
+
+  if (!contact) return 0
+
+  return calculateScoreInternal(contact)
+}
+
 export async function enrichAndScoreContact(contactId: string) {
+    // Optimized: Fetch activities here to avoid re-fetching in score calculation
     const contact = await prisma.contact.findUnique({
-        where: { id: contactId }
+        where: { id: contactId },
+        include: { activities: true }
     })
 
     if (!contact) throw new Error("Contact not found")
@@ -101,7 +112,8 @@ export async function enrichAndScoreContact(contactId: string) {
     }
 
     // 2. Score (now includes Market Logic)
-    const newScore = await calculateLeadScore(contactId)
+    // Pass the already fetched contact data (including activities)
+    const newScore = await calculateScoreInternal(contact)
 
     await prisma.contact.update({
         where: { id: contactId },
