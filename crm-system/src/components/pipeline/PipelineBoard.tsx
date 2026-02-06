@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useMemo, memo } from "react"
 import { DndContext, DragOverlay, useDraggable, useDroppable, DragEndEvent } from "@dnd-kit/core"
 import { updateDealStage } from "@/actions/pipeline"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,6 +22,21 @@ export function PipelineBoard({ initialDeals }: { initialDeals: DealWithRelation
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
   }, [])
+
+  // Optimization: Group deals by stage to prevent re-filtering on every render
+  const dealsByStage = useMemo(() => {
+    const acc = STAGES.reduce((acc, stage) => {
+      acc[stage] = []
+      return acc
+    }, {} as Record<string, DealWithRelations[]>)
+
+    deals.forEach((deal) => {
+      if (acc[deal.stage]) {
+        acc[deal.stage].push(deal)
+      }
+    })
+    return acc
+  }, [deals])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function handleDragStart(event: any) {
@@ -56,7 +71,7 @@ export function PipelineBoard({ initialDeals }: { initialDeals: DealWithRelation
     <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex h-full gap-4 overflow-x-auto pb-4">
         {STAGES.map((stage) => (
-          <PipelineColumn key={stage} stage={stage} deals={deals.filter((d) => d.stage === stage)} />
+          <PipelineColumn key={stage} stage={stage} deals={dealsByStage[stage] || []} />
         ))}
       </div>
       <DragOverlay>
@@ -66,7 +81,8 @@ export function PipelineBoard({ initialDeals }: { initialDeals: DealWithRelation
   )
 }
 
-function PipelineColumn({ stage, deals }: { stage: string, deals: DealWithRelations[] }) {
+// Optimization: Memoize PipelineColumn to prevent re-renders when other columns change
+const PipelineColumn = memo(function PipelineColumn({ stage, deals }: { stage: string, deals: DealWithRelations[] }) {
   const { setNodeRef } = useDroppable({
     id: stage,
   })
@@ -84,9 +100,10 @@ function PipelineColumn({ stage, deals }: { stage: string, deals: DealWithRelati
       </div>
     </div>
   )
-}
+})
 
-function DraggableDealCard({ deal }: { deal: DealWithRelations }) {
+// Optimization: Memoize DraggableDealCard to prevent re-renders when parent re-renders
+const DraggableDealCard = memo(function DraggableDealCard({ deal }: { deal: DealWithRelations }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: deal.id,
   })
@@ -100,9 +117,10 @@ function DraggableDealCard({ deal }: { deal: DealWithRelations }) {
       <DealCard deal={deal} />
     </div>
   )
-}
+})
 
-function DealCard({ deal }: { deal: DealWithRelations }) {
+// Optimization: Memoize DealCard to be safe
+const DealCard = memo(function DealCard({ deal }: { deal: DealWithRelations }) {
   return (
     <Card className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow">
       <CardHeader className="p-4 pb-2">
@@ -123,4 +141,4 @@ function DealCard({ deal }: { deal: DealWithRelations }) {
       </CardContent>
     </Card>
   )
-}
+})
